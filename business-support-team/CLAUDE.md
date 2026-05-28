@@ -36,7 +36,7 @@ Codex가 구현/검증, Claude Code가 계획/해석/문서화. 코드/데이터
 | 대시보드 항목 검토       | `output/dashboard_review_<slug>.md` | Codex 대시보드 구현 후              |
 | 설정 구조 검토         | `output/config_review_<slug>.md`    | KPI/차트/테이블 설정 구조 검토 시        |
 | 배포/운영 검토         | `output/deploy_review_<slug>.md`    | Docker/Windows 운영 PC 배포 검토 시 |
-| 최종 보고서           | `output/final_report_<slug>.md`     | Codex 분석 후 경영진/경영지원팀 보고      |
+| 최종 보고서           | `output/final_report_<slug>.pdf`    | Codex 분석 후 경영진/경영지원팀 보고      |
 | 세션 간 인계          | `output/handoff_<slug>.md`          | Claude Code 세션 A→B           |
 
 각 문서의 표준 구조는 `docs/templates.md` 참조.
