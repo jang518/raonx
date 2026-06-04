@@ -2,9 +2,9 @@
 
 knowledge_for_marketing_dashboard 프로젝트의 현황판. Codex와 Claude Code가 협업할 때 보는 단일 진실 원천이다.
 
-Goal: 고객 방문보고서에서 파악한 고객 니즈와 소프트웨어 기능을 연결해, 영업·엔지니어가 고객 미팅 전 고객 니즈 / 추천 기능 / 제안 메시지 / 다음 미팅 질문을 빠르게 확인할 수 있는 사내 Streamlit 웹 대시보드를 구축한다.
+**Goal**: 고객 방문보고서에서 파악한 고객 니즈와 소프트웨어 기능을 연결해, 영업·엔지니어가 고객 미팅 전 고객 니즈 / 추천 기능 / 제안 메시지 / 다음 미팅 질문을 빠르게 확인할 수 있는 사내 Streamlit 웹 대시보드를 구축한다.
 
-메타 규칙: `docs/collab-protocol.md` — 역할, Work Board/락/Decisions/Handoff Log 갱신 방식, 파일 네이밍, 협업 환경 정책, archive 규칙.
+**메타 규칙**: `docs/collab-protocol.md` — 역할, Work Board/락/Decisions/Handoff Log 갱신 방식, 파일 네이밍, 협업 환경 정책, archive 규칙.
 
 * * *
 
