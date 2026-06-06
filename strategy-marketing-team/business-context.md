@@ -17,7 +17,7 @@
         ↓  Claude 분석·정리
 wiki/ 지식 위키
         ↓  구조화 데이터 추출
-export CSV 4개
+export CSV 5개
         ↓  로컬 대시보드 개발
 robocopy로 서버 PC에 필요한 파일만 전송
         ↓
@@ -25,16 +25,6 @@ robocopy로 서버 PC에 필요한 파일만 전송
 ```
 
 이 대시보드는 **외부 인터넷 접속 없이 사내망 내부 전용**으로 운영합니다.
-
-이 대시보드는 사내 팀원이 다음 질문에 빠르게 답하기 위한 도구입니다.
-
-1. 반복적으로 등장하는 고객 니즈는 무엇이며, 어떤 마케팅 콘텐츠나 세미나 주제로 활용할 수 있는가?
-2. 이 고객사는 과거에 어떤 니즈와 문의를 가지고 있었는가?
-3. 해당 고객 니즈에 연결할 수 있는 소프트웨어 기능은 무엇인가?
-4. 고객에게 어떤 가치 메시지와 제안 방향을 제시할 수 있는가?
-5. 다음 미팅에서 확인해야 할 추천 질문은 무엇인가?
-6. 니즈-기능 매칭의 `confidence`는 어느 정도인가?
-7. 영업·엔지니어·마케팅 담당자가 가장 먼저 확인해야 할 정보는 무엇인가?
 
 ---
 
@@ -53,25 +43,21 @@ robocopy로 서버 PC에 필요한 파일만 전송
 권한 기준:
 
 - 모든 사용자는 계정별로 로그인합니다.
-- 접속은 계정과 비밀번호 입력 후 가능합니다.
 - `admin` 계정은 조회와 수정이 가능합니다.
 - `admin` 이외 계정은 `viewer`로 조회만 가능합니다.
 - 인증 정보는 코드에 하드코딩하지 않고 환경변수 또는 Streamlit secrets 등 외부 설정으로 관리합니다.
-- 대시보드는 사내망 내부 전용입니다. 외부 인터넷 접속은 범위에서 제외합니다.
 - admin 수정값은 원본 CSV를 직접 수정하지 않고 별도 override CSV에 저장합니다.
-- viewer 코멘트 기능은 1차 개발에 포함하지 않습니다.
 
 ---
 
-## 3. 정보 자산
+## 3. 정보 자산과 역할
 
 | 정보 자산 | 역할 | 현재 기준 |
 |---|---|---|
 | 방문보고서 | 고객 니즈와 문의 내용을 확인하는 핵심 원천 자료 | 고객별 니즈, 관심 기능, 대응 이력의 1차 근거 |
 | 기능 업데이트 자료 | 소프트웨어별 기능과 가치 메시지를 정리하는 자료 | 소프트웨어 기능을 고객 니즈와 연결하는 근거 |
 | `wiki/` 지식 위키 | 원천 자료를 Claude가 분석·정리한 마크다운 지식 베이스 | 고객별 니즈, 기능, 매칭, 대응 전략을 사람이 검토 가능한 형태로 유지 |
-| `export/` CSV | 웹 대시보드가 읽는 구조화 데이터 | 대시보드 입력 데이터 4개 CSV |
-| `dashboard_manifest.json` | 데이터 묶음의 기준 정보 | export 파일 목록, 생성 시점, 반영 상태 등을 관리하는 보조 파일 |
+| `export/` CSV 5개 | 웹 대시보드가 읽는 구조화 데이터 | customer_master 중심의 관계형 데이터 묶음 |
 | Streamlit 대시보드 | 팀원이 조회하는 사내 웹 화면 | 마케팅 활용, 고객 미팅 준비, confidence 확인 |
 | override CSV | admin 수정값 저장 영역 | 원본 CSV를 직접 수정하지 않고 담당자 메모, 운영 메모 등 수정값 별도 관리 |
 | 서버 PC 운영 파일 | 팀 공유 대시보드를 실행하는 운영 환경 | Docker 기반 운영, `incoming/` → `data/` 반영 |
@@ -85,152 +71,118 @@ robocopy로 서버 PC에 필요한 파일만 전송
 
 ---
 
-## 4. 로컬/서버 운영 구조
+## 4. v5 export 데이터 구조
 
-### 4.1 사용자 컴퓨터: 원본·개발·관리 영역
-
-```text
-knowledge_for_marketing/
-├── raw/          원본 자료 (읽기 전용)
-├── wiki/         정리 지식 페이지
-├── export/       대시보드용 CSV 4개
-├── dashboard/    대시보드 개발 파일
-├── scripts/      export 재생성 또는 보조 스크립트
-└── logs/         작업 로그
-```
-
-규칙:
-
-- 원본 파일은 사용자 컴퓨터에 있습니다.
-- 대시보드 개발도 사용자 컴퓨터에서 진행합니다.
-- `raw/`, `wiki/`, `export/`는 대시보드 개발 중 임의 수정하지 않습니다.
-- `dashboard/`는 Streamlit 대시보드 개발 기본 폴더입니다.
-- `scripts/`는 검증, export 재생성, robocopy 서버 반영 보조 스크립트 영역입니다.
-
-### 4.2 서버 PC: 운영 영역
+대시보드 입력 데이터는 `export/`에서 생성된 CSV 5개를 기준으로 합니다.
 
 ```text
-marketing_llmwiki/
-├── dashboard/    Docker 대시보드 실행 파일
-├── incoming/     사용자 컴퓨터에서 전달받는 임시 데이터
-├── data/         Docker 대시보드가 실제로 읽는 데이터
-├── backup/       기존 data 백업
-└── logs/         반영 작업 로그
-```
-
-서버 반영 기본 흐름:
-
-```text
-1. 사용자 컴퓨터에서 export CSV 4개와 대시보드 운영 파일 준비
-2. robocopy로 서버 PC의 incoming/ 또는 운영 반영용 폴더에 필요한 파일만 전송
-3. incoming/ 파일명·개수·헤더 검증
-4. 기존 data/를 backup/으로 복사
-5. incoming/ 검증본을 data/로 반영
-6. Streamlit 데이터 새로고침 또는 Docker 컨테이너 재시작
-7. logs/에 반영 결과 기록
-```
-
-기준:
-
-- 서버 PC 전송 방식은 **robocopy**를 사용합니다.
-- 서버 PC에는 웹 기반 대시보드 구현에 필요한 파일만 복사합니다.
-- 원본 `raw/`, 전체 `wiki/`, 불필요한 개발 로그는 서버 전송 대상에서 제외합니다.
-- 검증 실패 시 기존 `data/`를 교체하지 않습니다.
-- CSV 변경 시에는 데이터 새로고침 기능을 우선 사용하고, 코드 변경 또는 장애 대응 시 Docker 컨테이너 재시작도 사용합니다.
-
----
-
-## 5. 사용 데이터
-
-대시보드 입력 데이터는 `export/`에서 생성된 CSV 4개를 기준으로 합니다.
-
-현재 실제 export CSV 파일:
-
-```text
+customer_master.csv
 customer_needs.csv
 software_features.csv
 need_value_matching.csv
 customer_strategy.csv
 ```
 
-### 5.1 현재 실제 CSV 컬럼
+### 4.1 파일별 역할
 
-| 파일명 | 현재 컬럼 |
-|---|---|
-| `customer_needs.csv` | `need_id`, `customer_name`, `industry`, `need_date`, `need_keyword`, `need_text`, `need_analysis`, `need_final`, `author`, `assignee`, `progress_note`, `sensitivity_level`, `dashboard_visible`, `customer_grade`, `visit_count` |
-| `software_features.csv` | `feature_id`, `software`, `feature_name`, `feature_summary`, `value_keywords`, `related_need_keywords`, `source_wiki`, `last_updated`, `dashboard_visible` |
-| `need_value_matching.csv` | `match_id`, `need_id`, `feature_id`, `value_message`, `need_date`, `dashboard_visible`, `confidence` |
-| `customer_strategy.csv` | `strategy_id`, `customer_name`, `main_needs`, `recommended_software`, `approach_details`, `suggested_questions`, `proposal_message`, `author`, `assignee`, `sensitivity_level`, `dashboard_visible`, `customer_grade`, `visit_count` |
+| 파일 | 역할 | 핵심 키 |
+|---|---|---|
+| `customer_master.csv` | 고객 정보의 단일 진실 공급원(SSOT). 고객 ID, 표준 고객사명, 부서, 산업군, 고객 등급, 방문 횟수 등을 관리 | `customer_id` |
+| `customer_needs.csv` | 고객 니즈 데이터. 고객 기본 정보는 master를 참조하고, 니즈 본문·분석·담당자 입력값을 관리 | `need_id`, `customer_id` |
+| `software_features.csv` | 소프트웨어 기능과 가치 키워드 데이터 | `feature_id` |
+| `need_value_matching.csv` | 고객 니즈와 소프트웨어 기능의 가치 매칭 데이터 | `match_id`, `need_id`, `feature_id` |
+| `customer_strategy.csv` | 고객사별 대응 전략, 추천 소프트웨어, 다음 미팅 질문, 제안 메시지 데이터 | `strategy_id`, `customer_id` |
 
-현재 실제 CSV 기준 주의사항:
+### 4.2 파일 간 관계
 
-- 현재 CSV에는 `customer_id`가 없습니다.
-- 현재 CSV에는 `review_status`가 없습니다.
-- 현재 `dashboard_visible` 값은 `TRUE/FALSE` 체계입니다.
-- 현재 `sensitivity_level` 컬럼은 있으나, 내부 직원용 대시보드에서는 표시/필터/배지 기준으로 사용하지 않습니다.
-
-### 5.2 목표 export 생성 규칙
-
-향후 export 생성 시 다음 기준을 반영합니다.
-
-| 항목 | 목표 기준 |
-|---|---|
-| 고객 식별 | `customer_id` 컬럼 생성. 고객사명 문자열 JOIN 대신 `customer_id` 기준 연결 우선 |
-| 대시보드 표시 | `dashboard_visible`은 `TRUE/FALSE`로 유지 |
-| admin 수정값 | 원본 CSV가 아니라 override CSV에 저장 |
-| 매칭 신뢰도 | 현재 존재하는 `confidence`를 기준으로 표시 |
-
-제외 기준:
-
-- `review_status`는 1차 범위에서 제외합니다.
-- `sensitivity_level`은 화면 표시/필터/배지 기준으로 사용하지 않습니다.
-- `sensitivity_level`의 `일반/주의/비공개` 3단계 변환은 진행하지 않습니다.
-
----
-
-## 6. CSV 관계 정의
-
-1. `need_value_matching.csv` ↔ `customer_needs.csv`
-   - 현재 연결 컬럼: `need_value_matching.need_id` → `customer_needs.need_id`
-   - 의미: 고객 니즈 1건에 여러 기능이 매칭될 수 있음
-
-2. `need_value_matching.csv` ↔ `software_features.csv`
-   - 현재 연결 컬럼: `need_value_matching.feature_id` → `software_features.feature_id`
-   - 의미: 기능 1개가 여러 고객 니즈에 매칭될 수 있음
-
-3. `customer_strategy.csv` ↔ `customer_needs.csv`
-   - 현재 연결 컬럼: `customer_strategy.customer_name` → `customer_needs.customer_name`
-   - 주의: PK/FK가 아닌 고객사명 문자열 연결이므로 표기 차이에 취약함
-   - 목표: export 생성 시 `customer_id`를 추가해 `customer_id` 기준 연결로 전환
-
-4. `software_features.csv` ↔ `customer_needs.csv`
-   - 현재 연결 컬럼: `software_features.related_need_keywords` ↔ `customer_needs.need_keyword`
-   - 의미: 직접 JOIN이 아니라 어휘 기반 참고 연결
+```text
+customer_master ──(customer_id)──► customer_needs
+customer_master ──(customer_id)──► customer_strategy
+customer_needs  ──(need_id)──────► need_value_matching
+software_features ─(feature_id)──► need_value_matching
+```
 
 규칙:
 
-- 관계가 불명확하면 임의 JOIN하지 않습니다.
-- 고객사명 문자열 연결은 표기 차이로 오류가 날 수 있으므로 검증 결과에 기록합니다.
-- 키워드 기반 연결은 직접 근거가 아니라 참고 연결로 표현합니다.
-- `customer_id`가 생성된 이후에는 고객사 단위 연결에 `customer_id`를 우선 사용합니다.
+- 고객사 기준 정보는 `customer_master.csv`를 단일 진실 공급원으로 봅니다.
+- 고객사 단위 연결은 `customer_name` 문자열이 아니라 `customer_id`를 우선 사용합니다.
+- `customer_needs.csv`와 `customer_strategy.csv`의 `customer_name`은 화면 표시용입니다.
+- 고객 기본 정보(`department`, `industry`, `customer_grade`, `visit_count`)는 `customer_master.csv`에서 가져옵니다.
+- `need_value_matching.csv`에는 `customer_id`를 중복 추가하지 않습니다.
+- 고객 정보가 필요한 매칭 화면은 `need_value_matching.need_id` → `customer_needs.need_id` → `customer_needs.customer_id` → `customer_master.customer_id` 순서로 연결합니다.
+- `software_features.csv`에는 `customer_id`를 추가하지 않습니다.
+- `related_need_keywords`는 직접 FK가 아니라 참고 연결로 표현합니다.
+
+### 4.3 현재 실제 CSV 컬럼
+
+`customer_master.csv`:
+
+```text
+customer_id, customer_name, department, industry, customer_grade, visit_count, author, dashboard_visible
+```
+
+`customer_needs.csv`:
+
+```text
+need_id, customer_id, customer_name, need_date, need_keyword, need_text, need_analysis, need_final, author, assignee, progress_note, sensitivity_level, dashboard_visible
+```
+
+`software_features.csv`:
+
+```text
+feature_id, software, feature_name, feature_summary, value_keywords, related_need_keywords, source_wiki, last_updated, dashboard_visible
+```
+
+`need_value_matching.csv`:
+
+```text
+match_id, need_id, feature_id, value_message, need_date, dashboard_visible, confidence
+```
+
+`customer_strategy.csv`:
+
+```text
+strategy_id, customer_id, customer_name, main_needs, recommended_software, approach_details, suggested_questions, proposal_message, author, assignee, sensitivity_level, dashboard_visible
+```
+
+---
+
+## 5. 데이터 표시 기준
+
+- `dashboard_visible`은 모든 CSV에서 대시보드 기본 표시 여부를 판단하는 기준입니다.
+- `dashboard_visible=FALSE` 데이터는 기본 화면에서 숨깁니다.
+- `confidence`는 `need_value_matching.csv`에 존재하는 매칭 신뢰도 표시 기준으로 사용합니다.
+- `review_status`는 1차 범위에서 제외합니다.
+- `sensitivity_level`은 `customer_needs.csv`, `customer_strategy.csv`에 존재하지만, 내부 직원용 대시보드에서 표시/필터/배지 기준으로 사용하지 않습니다.
+- `sensitivity_level` 값 변환은 진행하지 않습니다.
+
+---
+
+## 6. 대시보드 화면 범위
+
+1차 개발 화면은 다음 6개입니다.
+
+| 화면 | 목적 | 핵심 질문 | 주요 데이터 |
+|---|---|---|---|
+| Home | 전체 현황, 최근 니즈, 마케팅 후보 요약 | 지금 가장 먼저 봐야 할 고객 니즈와 활용 후보는 무엇인가? | 5개 CSV 전체 요약 |
+| 고객 니즈 검색 | 고객사·부서·산업군·키워드 중심 검색 | 특정 고객 또는 산업군은 어떤 니즈를 가지고 있었는가? | master + needs |
+| 니즈-기능-가치 매칭 | 고객 니즈에 연결된 추천 기능과 제안 메시지 확인 | 이 니즈에 어떤 기능과 가치 메시지를 연결할 수 있는가? | needs + matching + features + master |
+| 고객사별 대응 전략 | 추천 접근 방향, 다음 미팅 추천 질문 확인 | 다음 미팅에서 어떤 접근과 질문을 준비해야 하는가? | master + strategy + needs |
+| 소프트웨어별 가치 맵 | 기능 목록과 연결 가능한 고객 니즈 확인 | 이 소프트웨어 기능은 어떤 고객 니즈와 연결되는가? | features + matching + needs + master |
+| 마케팅 활용 | 반복 니즈, 가치 메시지, 콘텐츠/세미나/제안서 후보 확인 | 어떤 고객 니즈를 마케팅 자료와 고객 맞춤 콘텐츠로 활용할 수 있는가? | needs + matching + features + master |
 
 ---
 
 ## 7. 고객 데이터 해석 규칙
 
-방문보고서, wiki, export CSV에 명시된 정보만 사용합니다.
-
 사용 가능:
 
-- 고객사명, 고객 ID, 산업군, 고객 등급
+- `customer_master.csv`의 고객 ID, 표준 고객사명, 부서, 산업군, 고객 등급, 방문 횟수
 - 방문보고서에서 확인된 고객 니즈
-- 고객이 언급한 문제, 요구, 관심 기능
 - wiki에 정리된 소프트웨어 기능
-- 니즈-기능 매칭 정보
-- `confidence` 기반 매칭 신뢰도
+- 니즈-기능 매칭 정보와 `confidence`
 - 다음 미팅 추천 질문
 - 마케팅 활용 후보
-- 출처 파일과 보고서 일자
 - 대시보드 노출 여부
 
 금지:
@@ -239,11 +191,11 @@ customer_strategy.csv
 - 예산 규모 추정
 - 도입 의사 단정
 - 방문보고서에 없는 고객 의도 상상
+- `customer_name` 문자열만으로 고객 관계를 단정하고 `customer_id` 검증을 생략하는 것
 - `confidence`가 낮은 매칭을 주요 추천으로 단정 표시
 - 마케팅 활용 후보를 확정 캠페인 또는 확정 수요처럼 표시
 - 고객 담당자 정보를 필요 이상으로 상세하게 노출
 - 원천 자료에 없는 기능 효과를 과장해서 작성
-- `viewer` 역할의 팀원이 데이터를 수정할 수 있는 것처럼 설계 또는 문서화
 - `raw/`, `wiki/`, `export/` 원본을 대시보드 앱이나 작업자가 직접 수정
 
 추천 문장 구조:
@@ -260,113 +212,53 @@ customer_strategy.csv
 
 ---
 
-## 8. 의사결정 기준
+## 8. 로컬/서버 운영 구조
 
-### 8.1 우선 표시할 고객 니즈
+사용자 컴퓨터:
 
-- 최근 방문보고서 또는 wiki에서 반복적으로 등장한다.
-- 마케팅 콘텐츠, 세미나, 제안서, 고객 맞춤 기능 소개에 활용 가능하다.
-- 고객 미팅 전 영업·엔지니어가 바로 확인할 필요가 있다.
-- 소프트웨어 기능 또는 가치 메시지와 연결 가능하다.
-- `dashboard_visible=TRUE` 상태다.
+```text
+knowledge_for_marketing/
+├── raw/
+├── wiki/
+├── export/
+├── dashboard/
+├── scripts/
+└── logs/
+```
 
-### 8.2 우선 추천할 기능/메시지
+서버 PC:
 
-- 고객 니즈와 기능의 연결 근거가 명확하다.
-- `confidence`가 `높음` 또는 최소 `중간` 이상이다.
-- 고객에게 제안할 `value_message`가 구체적이다.
-- 고객사별 대응 전략의 `proposal_message`, `suggested_questions`와 연결된다.
+```text
+marketing_llmwiki/
+├── dashboard/
+├── incoming/
+├── data/
+├── backup/
+└── logs/
+```
 
-주의:
+서버 반영 기본 흐름:
 
-- 소프트웨어 항목은 추가될 수 있으므로, 코드와 화면은 특정 소프트웨어명을 하드코딩하지 않고 CSV의 `software` 값을 기준으로 동적으로 처리합니다.
-- 현재 CSV에서는 `confidence`와 근거 데이터를 우선 표시합니다.
-
-### 8.3 마케팅 활용 후보
-
-- 여러 고객 또는 여러 보고서에서 반복적으로 등장하는 니즈다.
-- 특정 소프트웨어 기능 또는 가치 키워드와 연결된다.
-- 세미나, 제안서, 고객 맞춤 기능 소개, 기술 콘텐츠 주제로 활용 가능하다.
-- 단, 확정 캠페인 또는 확정 고객 수요처럼 표현하지 않는다.
-
----
-
-## 9. 대시보드 화면 범위
-
-1차 개발 화면은 다음 6개입니다.
-
-| 화면 | 목적 | 핵심 질문 |
-|---|---|---|
-| Home | 전체 현황, 최근 니즈, 마케팅 후보 요약 | 지금 가장 먼저 봐야 할 고객 니즈와 활용 후보는 무엇인가? |
-| 고객 니즈 검색 | 고객사·산업군·키워드 중심 검색 | 특정 고객 또는 산업군은 어떤 니즈를 가지고 있었는가? |
-| 니즈-기능-가치 매칭 | 고객 니즈에 연결된 추천 기능과 제안 메시지 확인 | 이 니즈에 어떤 기능과 가치 메시지를 연결할 수 있는가? |
-| 고객사별 대응 전략 | 추천 접근 방향, 다음 미팅 추천 질문 확인 | 다음 미팅에서 어떤 접근과 질문을 준비해야 하는가? |
-| 소프트웨어별 가치 맵 | 기능 목록과 연결 가능한 고객 니즈 확인 | 이 소프트웨어 기능은 어떤 고객 니즈와 연결되는가? |
-| 마케팅 활용 | 반복 니즈, 가치 메시지, 콘텐츠/세미나/제안서 후보 확인 | 어떤 고객 니즈를 마케팅 자료와 고객 맞춤 콘텐츠로 활용할 수 있는가? |
+```text
+1. 사용자 컴퓨터에서 export CSV 5개와 대시보드 운영 파일 준비
+2. robocopy로 서버 PC의 incoming/ 또는 운영 반영용 폴더에 필요한 파일만 전송
+3. incoming/ 파일명·개수·헤더·관계 검증
+4. 기존 data/를 backup/으로 복사
+5. incoming/ 검증본을 data/로 반영
+6. Streamlit 데이터 새로고침 또는 Docker 컨테이너 재시작
+7. logs/에 반영 결과 기록
+```
 
 ---
 
-## 10. 산출물과 개발 단계
+## 9. 절대 금지
 
-### 10.1 1차 — 로컬 Streamlit 조회 + 계정별 접근 + admin override 계획
-
-- `dashboard/`: Streamlit 대시보드 앱 코드
-- `dashboard/app.py` 또는 `dashboard/streamlit_app.py`: 앱 진입점
-- `dashboard/pages/`: 6개 화면 구성 파일
-- `dashboard/components/`: 공통 UI 컴포넌트
-- `dashboard/services/`: CSV 로딩, 권한, 상태 처리 서비스 로직
-- `scripts/validate_csv.py`: 4개 CSV 존재 여부, 컬럼명, 관계 무결성 검증
-- `scripts/load_data.py`: CSV 로딩 및 공통 전처리 로직
-- `requirements.txt`: Python 패키지 목록
-- `README.md`: 로컬 실행 방법과 프로젝트 설명
-- `output/analysis_summary_<slug>.md`: CSV 구조 및 검증 결과
-- `output/handoff_<slug>.md`: 구현 후 인수인계
-
-### 10.2 2차 — 서버 PC Docker 운영
-
-- `Dockerfile`: Streamlit 앱 컨테이너 설정
-- `docker-compose.yml`: 서버 PC 운영용 Compose 설정
-- `.streamlit/config.toml`: Streamlit 실행 설정
-- `docs/deploy-flow.md` 또는 `docs/server-runbook.md`: robocopy 기반 파일 전송, 실행, 중지, 재시작, 데이터 반영 방법
-
-### 10.3 3차 — export 생성 규칙 개선
-
-- `customer_id` 생성
-- `dashboard_visible`을 `TRUE/FALSE`로 유지
-- `sensitivity_level` 변환은 진행하지 않음
-- `review_status`는 1차 범위에서 제외
-
----
-
-## 11. 톤과 문장 기준
-
-좋은 문장:
-
-- “이 니즈는 여러 고객군에서 반복적으로 등장하므로 마케팅 콘텐츠 후보로 검토할 수 있습니다.”
-- “해당 니즈는 pSeven 기반 프로세스 자동화 기능과 연결할 수 있습니다.”
-- “이 매칭은 confidence가 낮으므로 담당자 확인 후 제안에 활용하세요.”
-- “다음 미팅에서는 현재 반복 작업의 병목 구간을 확인하는 질문이 적합합니다.”
-
-피해야 할 문장:
-
-- “이 고객사는 반드시 이 솔루션을 도입할 것입니다.”
-- “구매 가능성이 높습니다.”
-- “예산이 충분할 것으로 보입니다.”
-- “이 마케팅 캠페인은 확정입니다.”
-- “근거는 없지만 이 기능을 추천합니다.”
-
----
-
-## 12. 절대 금지
-
-- 데이터에 없는 고객 의도, 구매 가능성, 예산, 도입 의지, 내부 의사결정 상황 단정
-- 방문보고서에 없는 내용을 고객 요구사항처럼 표현
-- 마케팅 활용 후보를 확정 캠페인 또는 확정 고객 수요처럼 표현
-- confidence 낮음 매칭을 확정 추천처럼 표시
-- 고객사, 담당자, 미팅 정보 등 내부 정보를 불필요하게 노출
 - 실제 고객 데이터 CSV를 Git에 커밋
-- 사용자가 제공하지 않은 CSV 스키마를 확정된 것처럼 단정
+- override CSV 실데이터를 Git에 커밋
+- 인증 정보를 코드나 Git에 커밋
 - `raw/`, `wiki/`, `export/` 원본 영역 임의 수정
-- 서버 PC 운영 데이터나 Docker 운영 파일을 사용자 승인 없이 수정·배포
-- `viewer`가 데이터를 수정할 수 있는 것처럼 설계 또는 문서화
-- 숫자 근거 없는 단정형 보고서 작성
+- `customer_master.csv`를 무시하고 `customer_name` 문자열만으로 고객 관계를 연결
+- `need_value_matching.csv`나 `software_features.csv`에 `customer_id`를 중복 추가
+- `review_status`를 1차 기능으로 구현
+- `sensitivity_level`을 표시/필터/배지 기준으로 사용
+- 외부 인터넷 접속 지원을 전제로 설계
