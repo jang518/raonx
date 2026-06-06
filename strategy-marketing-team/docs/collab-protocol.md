@@ -13,7 +13,7 @@
         ↓  Claude 분석·정리
 wiki/ 지식 위키
         ↓  구조화 데이터 추출
-export CSV 4개
+export CSV 5개
         ↓  로컬 대시보드 개발
 robocopy로 서버 PC에 필요 파일만 전송
         ↓
@@ -71,7 +71,7 @@ robocopy로 서버 PC에 필요 파일만 전송
 knowledge_for_marketing/
 ├── raw/          원본 자료 (읽기 전용)
 ├── wiki/         정리 지식 페이지
-├── export/       대시보드용 CSV 4개
+├── export/       대시보드용 CSV 5개
 ├── dashboard/    대시보드 개발 파일
 ├── scripts/      export 재생성 또는 보조 스크립트
 └── logs/         작업 로그
@@ -234,38 +234,147 @@ export-schema-update
 
 ## 7. CSV / 데이터 기준
 
-현재 실제 export CSV 4개:
+현재 실제 export CSV는 v5 기준 5개다.
 
 ```text
+customer_master.csv
 customer_needs.csv
 software_features.csv
 need_value_matching.csv
 customer_strategy.csv
 ```
 
-현재 실제 CSV에는 `customer_id`가 없다. export 생성 규칙 개선 전에는 해당 컬럼이 있다고 가정하지 않는다.
+### 7.1 파일별 역할
 
-목표 export 생성 규칙:
+| 파일 | 역할 | 주요 연결 |
+|---|---|---|
+| `customer_master.csv` | 고객 정보의 단일 진실 공급원(SSOT). 고객 ID, 표준 고객사명, 부서, 산업군, 고객 등급, 방문 횟수 등을 관리 | `customer_id` 기준으로 `customer_needs.csv`, `customer_strategy.csv`가 참조 |
+| `customer_needs.csv` | 고객 니즈 데이터. 고객 기본 정보는 master를 참조하고, 니즈 본문·분석·담당자 입력값을 관리 | `customer_id` → `customer_master.customer_id` |
+| `software_features.csv` | 소프트웨어 기능과 가치 키워드 데이터 | `feature_id` 기준으로 `need_value_matching.csv`가 참조 |
+| `need_value_matching.csv` | 고객 니즈와 소프트웨어 기능의 가치 매칭 데이터 | `need_id` → `customer_needs.need_id`, `feature_id` → `software_features.feature_id` |
+| `customer_strategy.csv` | 고객사별 대응 전략, 추천 소프트웨어, 다음 미팅 질문, 제안 메시지 데이터 | `customer_id` → `customer_master.customer_id` |
 
-- 고객 식별용 `customer_id` 컬럼을 생성한다.
-- `dashboard_visible`은 `TRUE/FALSE` 체계를 유지한다.
-- `confidence`는 현재 존재하는 매칭 신뢰도 표시 기준으로 사용한다.
-- admin 수정값은 원본 CSV가 아니라 override CSV에 저장한다.
+### 7.2 현재 실제 CSV 컬럼
 
-제외 기준:
+#### `customer_master.csv` — 8컬럼
 
-- `review_status`는 1차 범위에서 제외한다.
-- `sensitivity_level`은 내부 직원용 대시보드에서 표시/필터/배지 기준으로 사용하지 않는다.
-- `sensitivity_level` 값 변환은 진행하지 않는다.
+```text
+customer_id
+customer_name
+department
+industry
+customer_grade
+visit_count
+author
+dashboard_visible
+```
+
+#### `customer_needs.csv` — 13컬럼
+
+```text
+need_id
+customer_id
+customer_name
+need_date
+need_keyword
+need_text
+need_analysis
+need_final
+author
+assignee
+progress_note
+sensitivity_level
+dashboard_visible
+```
+
+`customer_needs.csv`에서는 v5부터 `customer_id`를 포함하고, `industry`, `customer_grade`, `visit_count`는 제거한다. 해당 고객 기본 정보는 `customer_master.csv`를 참조한다.
+
+#### `software_features.csv` — 9컬럼
+
+```text
+feature_id
+software
+feature_name
+feature_summary
+value_keywords
+related_need_keywords
+source_wiki
+last_updated
+dashboard_visible
+```
+
+#### `need_value_matching.csv` — 7컬럼
+
+```text
+match_id
+need_id
+feature_id
+value_message
+need_date
+dashboard_visible
+confidence
+```
+
+#### `customer_strategy.csv` — 12컬럼
+
+```text
+strategy_id
+customer_id
+customer_name
+main_needs
+recommended_software
+approach_details
+suggested_questions
+proposal_message
+author
+assignee
+sensitivity_level
+dashboard_visible
+```
+
+`customer_strategy.csv`에서는 v5부터 `customer_id`를 포함하고, `customer_grade`, `visit_count`는 제거한다. 해당 고객 기본 정보는 `customer_master.csv`를 참조한다.
+
+### 7.3 파일 간 연결 구조
+
+```text
+customer_master ──(customer_id)──► customer_needs
+customer_master ──(customer_id)──► customer_strategy
+customer_needs  ──(need_id)──────► need_value_matching
+software_features ─(feature_id)──► need_value_matching
+```
 
 규칙:
 
-- CSV 헤더는 실제 파일을 기준으로 사용한다.
-- 컬럼명을 추론해 임의 보정하지 않는다.
-- 누락 컬럼은 코드에서 조용히 추정하지 않고 검증 결과에 기록한다.
-- 데이터에 없는 고객 의도, 예산, 구매 가능성, 내부 의사결정 상황은 추정하지 않는다.
+- 고객사 기준 정보는 `customer_master.csv`를 단일 진실 공급원으로 본다.
+- 고객사 단위 연결은 `customer_name` 문자열이 아니라 `customer_id`를 우선 사용한다.
+- `customer_needs.csv`와 `customer_strategy.csv`의 `customer_name`은 표시용으로 사용한다.
+- `need_value_matching.csv`에는 `customer_id`를 중복 추가하지 않는다. 고객 정보가 필요하면 `need_id`를 통해 `customer_needs.csv`에 연결한 뒤 `customer_id`로 `customer_master.csv`를 참조한다.
+- `software_features.csv`에는 `customer_id`를 추가하지 않는다.
+- `related_need_keywords`는 직접 FK가 아니라 참고 연결로 본다.
+
+### 7.4 표시·신뢰도·민감도 기준
+
+- `dashboard_visible`은 모든 CSV에서 대시보드 기본 표시 여부를 판단하는 기준이다.
 - `dashboard_visible=FALSE` 데이터는 기본 화면에서 숨긴다.
-- 실제 고객 데이터 CSV와 override CSV는 기본적으로 Git에 커밋하지 않는다.
+- `confidence`는 `need_value_matching.csv`에 존재하는 매칭 신뢰도 표시 기준으로 사용한다.
+- `review_status`는 1차 범위에서 제외한다.
+- `sensitivity_level`은 `customer_needs.csv`, `customer_strategy.csv`에 존재하지만, 내부 직원용 대시보드에서 표시/필터/배지 기준으로 사용하지 않는다.
+- `sensitivity_level` 값 변환은 진행하지 않는다.
+
+### 7.5 CSV 검증 기준
+
+Codex는 CSV 로딩 또는 대시보드 구현 전 다음을 검증한다.
+
+- export CSV 5개가 모두 존재하는가.
+- 각 CSV의 필수 컬럼이 v5 기준과 일치하는가.
+- `customer_master.customer_id`가 고유한가.
+- `customer_needs.customer_id`가 모두 `customer_master.customer_id`에 존재하는가.
+- `customer_strategy.customer_id`가 모두 `customer_master.customer_id`에 존재하는가.
+- `need_value_matching.need_id`가 모두 `customer_needs.need_id`에 존재하는가.
+- `need_value_matching.feature_id`가 모두 `software_features.feature_id`에 존재하는가.
+- `dashboard_visible` 값이 대시보드 표시 기준으로 처리 가능한가.
+- `confidence` 값이 표시 가능한 값으로 들어오는가.
+- 실제 고객 데이터 CSV와 override CSV는 Git에 커밋되지 않았는가.
 
 ---
 
@@ -276,7 +385,7 @@ customer_strategy.csv
 | 화면 | 목적 |
 |---|---|
 | Home | 최근 고객 니즈, 자주 등장한 니즈, 낮은 confidence, 마케팅 후보 요약 확인 |
-| 고객 니즈 검색 | 고객사·산업군·키워드로 니즈 검색 |
+| 고객 니즈 검색 | 고객사·부서·산업군·키워드로 니즈 검색 |
 | 니즈-기능-가치 매칭 | 고객 니즈에 연결된 추천 기능, 제안 메시지, 기대 가치 확인 |
 | 고객사별 대응 전략 | 추천 접근 방향, 다음 미팅 추천 질문 확인 |
 | 소프트웨어별 가치 맵 | 소프트웨어 기능 목록과 연결 가능한 고객 니즈 확인 |
@@ -286,6 +395,7 @@ UI 문구 원칙:
 
 - 마케팅 활용과 고객 미팅 준비에 모두 도움이 되어야 한다.
 - 고객 니즈 → 추천 기능 → 제안 가치 → 다음 확인 질문 흐름이 보여야 한다.
+- 고객 기본 정보가 필요하면 `customer_master.csv`를 기준으로 해석한다.
 - 단순 데이터 나열보다 “어떤 준비 또는 활용을 해야 하는가”가 드러나야 한다.
 - 낮은 confidence를 숨기지 않는다.
 - 마케팅 활용 후보를 확정 캠페인 또는 확정 고객 수요처럼 표현하지 않는다.
@@ -320,7 +430,7 @@ UI 문구 원칙:
 서버 반영 기본 흐름:
 
 ```text
-1. 사용자 컴퓨터에서 export CSV 4개와 대시보드 운영 파일 준비
+1. 사용자 컴퓨터에서 export CSV 5개와 대시보드 운영 파일 준비
 2. robocopy로 서버 PC의 incoming/ 또는 운영 반영용 폴더에 필요한 파일만 전송
 3. incoming/ 파일명·개수·헤더 검증
 4. 기존 data/를 backup/으로 복사
@@ -360,7 +470,8 @@ UI 문구 원칙:
 
 사용 가능 정보:
 
-- 방문보고서에 기록된 고객사명, 산업군, 관심 주제, 고객 니즈, 기술 이슈
+- 방문보고서에 기록된 고객사명, 관련 부서/역할, 산업군, 관심 주제, 고객 니즈, 기술 이슈
+- `customer_master.csv`에 정리된 고객 ID, 표준 고객사명, 부서, 산업군, 고객 등급, 방문 횟수
 - 위키에 정리된 고객별 니즈, 소프트웨어 기능, 니즈-기능 매칭, 대응 전략
 - export CSV에 포함된 `confidence`, 담당자 입력값, 노출 여부
 - override CSV에 기록된 admin 수정값
@@ -374,6 +485,7 @@ UI 문구 원칙:
 - 마케팅 활용 후보를 확정 캠페인 또는 확정 고객 수요처럼 표현
 - 개인정보, 개인 연락처, 민감한 개인 정보 수집 또는 노출
 - 외부 공개 자료와 내부 방문보고서를 섞으면서 출처를 흐리게 표현
+- `customer_name` 문자열만으로 고객 관계를 단정하고 `customer_id` 검증을 생략하는 것
 
 추천 문장은 다음 구조를 따른다.
 
@@ -408,6 +520,8 @@ UI 문구 원칙:
 [ ] 수정할 파일이 다른 actor에게 locked 되어 있지 않은지 확인
 [ ] 원본 영역(raw/, wiki/, export/)을 건드리는 작업인지 확인
 [ ] 실제 고객 데이터, override CSV, 인증 정보가 Git에 커밋될 가능성이 있는지 확인
+[ ] v5 기준 export CSV 5개 구조를 전제로 작업하는지 확인
+[ ] customer_master.csv를 고객 정보 SSOT로 해석하는지 확인
 [ ] 필요한 사용자 결정이 없으면 바로 진행, 있으면 질문 또는 blocked 처리
 [ ] slug 결정
 [ ] 산출물 작업이면 Work Board 행 등록
@@ -418,7 +532,10 @@ UI 문구 원칙:
 ```text
 [ ] 수정 파일 확인
 [ ] Git에 실데이터, override CSV, 인증 정보가 포함되지 않았는지 확인
-[ ] 검증 결과 기록
+[ ] CSV 5개 구조와 관계 검증 결과 기록
+[ ] customer_id 관계 검증 결과 기록
+[ ] review_status를 1차 범위에서 제외했는지 확인
+[ ] sensitivity_level을 표시/필터/배지 기준으로 사용하지 않았는지 확인
 [ ] Work Board 락 해제
 [ ] Handoff Log 1줄 추가
 [ ] 필요한 다음 작업 명시
