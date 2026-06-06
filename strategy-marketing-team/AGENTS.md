@@ -17,16 +17,15 @@ export CSV 4개
         ↓  로컬 대시보드 개발
 robocopy로 서버 PC에 필요 파일만 전송
         ↓
-팀 공유 웹 대시보드
+사내망 내부 팀 공유 웹 대시보드
 ```
 
 Codex의 핵심 임무:
 
 - `export/`에서 생성된 대시보드용 CSV 4개를 기준으로 Streamlit 대시보드 개발
-- Claude Code의 1차 계획을 실행 가능하게 보완
 - CSV 로딩, 데이터 검증, 화면 렌더링, 오류 검증 수행
 - 6개 화면 구현: Home, 고객 니즈 검색, 니즈-기능-가치 매칭, 고객사별 대응 전략, 소프트웨어별 가치 맵, 마케팅 활용
-- 계정별 로그인 구현: admin은 조회·수정 가능, 그 외 계정은 viewer 조회 전용
+- 사내망 내부 계정 로그인 구현: admin은 조회·수정 가능, 그 외 계정은 viewer 조회 전용
 - admin 수정값을 원본 CSV가 아니라 override CSV에 저장
 - Docker 기반 로컬/서버 실행 환경 구성
 - robocopy 기반 서버 PC 반영 흐름 보조 스크립트 또는 운영 문서 작성
@@ -59,7 +58,7 @@ Codex의 핵심 임무:
 [ ] 사용자 요청이 기존 규칙보다 우선하는 부분이 있는가
 [ ] 수정 대상이 dashboard/, scripts/, output/ 중 어디인가
 [ ] raw/, wiki/, export/를 직접 수정하는 작업은 아닌가
-[ ] 실제 고객 데이터, override CSV, 비밀번호/secrets가 Git에 커밋될 가능성이 있는가
+[ ] 실제 고객 데이터, override CSV, 인증 정보가 Git에 커밋될 가능성이 있는가
 [ ] 필요한 정보가 없으면 추론하지 않고 질문 또는 blocked 처리할 것인가
 ```
 
@@ -84,7 +83,7 @@ Codex의 핵심 임무:
 - `PROJECT.md` 기준으로 대시보드 개발 기본 범위는 `dashboard/`이다.
 - 기존 문서에 `app/` 표현이 남아 있어도 새 작업은 `dashboard/` 기준으로 진행한다.
 - `raw/`, `wiki/`, `export/`는 원본 영역이므로 사용자 지시 없이는 직접 수정하지 않는다.
-- 실제 고객 데이터, override CSV, 비밀번호/secrets는 Git에 커밋하지 않는다.
+- 실제 고객 데이터, override CSV, 인증 정보는 Git에 커밋하지 않는다.
 
 ---
 
@@ -112,28 +111,26 @@ customer_strategy.csv
 
 - 현재 CSV에는 `customer_id`가 없다.
 - 현재 CSV에는 `review_status`가 없다.
-- 현재 `sensitivity_level` 값은 `민감/내부` 체계다.
 - 현재 `dashboard_visible` 값은 `TRUE/FALSE` 체계다.
+- 현재 `sensitivity_level` 컬럼은 있지만, 내부 직원용 대시보드에서는 표시/필터/배지 기준으로 사용하지 않는다.
 
 목표 export 생성 규칙:
 
 - `customer_id` 컬럼을 생성한다.
-- `sensitivity_level`은 `일반/주의/비공개` 3단계로 생성한다.
-- legacy 값 매핑 기본 제안: `내부 → 일반`, `민감 → 주의`, `비공개`는 명시된 경우에만 부여.
 - `dashboard_visible`은 `TRUE/FALSE`로 유지한다.
-- `review_status`는 현재 CSV에 없으므로 override CSV 또는 향후 export 생성 규칙으로 관리한다.
+- 매칭 신뢰도 표시는 현재 존재하는 `confidence`를 사용한다.
+- `review_status`는 1차 범위에서 제외한다.
+- `sensitivity_level` 값 변환은 진행하지 않는다.
 
 ---
 
 ## 5. Claude Code에게 남기는 일
 
-아래 문서는 Claude Code 담당이다.
-
 | 문서 | 목적 |
 |---|---|
 | `output/dev_plan_<slug>.md` | 복잡한 작업 전 1차 계획 |
 | `output/questions_<slug>.md` | 대시보드 핵심 질문, 화면별 판단 기준 |
-| `output/risk_notes_<slug>.md` | 데이터 해석, 마케팅 과잉 표현, 보안, 권한 리스크 점검 |
+| `output/risk_notes_<slug>.md` | 데이터 해석, 마케팅 과잉 표현, 내부 정보 노출, 권한 리스크 점검 |
 | `output/final_report_<slug>.md` | 의사결정/공유용 최종 정리 |
 
 Codex는 위 문서를 사용자 명시 요청 없이 만들거나 덮어쓰지 않는다.
@@ -141,8 +138,6 @@ Codex는 위 문서를 사용자 명시 요청 없이 만들거나 덮어쓰지 
 ---
 
 ## 6. 개발 작업 시작 순서
-
-기본 흐름:
 
 1. `PROJECT.md` Work Board 확인
 2. 관련 `dev_plan_<slug>.md` 또는 사용자 요청 확인
@@ -176,11 +171,10 @@ Codex는 위 문서를 사용자 명시 요청 없이 만들거나 덮어쓰지 
 화면 구현 원칙:
 
 - 마케팅 활용과 고객 미팅 준비에 모두 도움이 되어야 한다.
-- `검토 필요`, `신뢰도 낮음`, `데이터 누락`은 숨기지 않는다.
+- 낮은 confidence와 데이터 누락은 숨기지 않는다.
 - 현재 CSV에는 `review_status`가 없으므로, 구현 시 없는 컬럼을 가정하지 않는다.
 - `dashboard_visible=FALSE` 데이터는 기본 화면에서 숨긴다.
-- `sensitivity_level=비공개` 데이터는 숨김 기준이 아니라 경고 배지로 표시한다.
-- 현재 legacy 값 `민감/내부`도 읽을 수 있어야 하며, 목표 값은 `일반/주의/비공개`다.
+- `sensitivity_level`은 화면 필터/배지 기준으로 사용하지 않는다.
 - 마케팅 활용 후보는 확정 캠페인이나 확정 고객 수요처럼 표현하지 않는다.
 - 색상, 레이아웃, 문구 톤은 `DESIGN.md`를 따른다.
 
@@ -192,16 +186,15 @@ Codex는 위 문서를 사용자 명시 요청 없이 만들거나 덮어쓰지 
 
 | 권한 | 대상 | 가능 작업 |
 |---|---|---|
-| `admin` | admin 계정 | 조회, 데이터 수정, 검토 상태 관리, 매칭 신뢰도 관리, 운영 반영 |
+| `admin` | admin 계정 | 조회, 데이터 수정, 매칭 신뢰도/메모 등 운영 정보 관리, 운영 반영 |
 | `viewer` | admin 이외 계정 | 조회 전용 |
 
 Codex 구현 기준:
 
 - 모든 사용자는 계정별로 로그인한다.
-- 접속은 비밀번호 입력 후 가능하게 한다.
-- 비밀번호는 코드에 하드코딩하지 않고, 환경변수 또는 Streamlit secrets 등 외부 설정으로 관리한다.
-- 1차 구현에서 인증은 사내망 내부 운영 보조 수준으로 본다.
-- 외부 공개 수준의 강한 인증/권한 관리는 별도 보안 검토 전까지 범위에서 제외한다.
+- 접속은 계정과 비밀번호 입력 후 가능하게 한다.
+- 인증 정보는 코드에 하드코딩하지 않고, 환경변수 또는 Streamlit secrets 등 외부 설정으로 관리한다.
+- 대시보드는 사내망 내부 전용이며 외부 인터넷 접속은 범위에서 제외한다.
 - admin 수정값은 원본 CSV가 아니라 별도 override CSV에 저장한다.
 - override CSV에는 최소한 수정자, 수정 시각, 대상 ID, 변경 전/후 값이 남아야 한다.
 - viewer는 데이터 수정, 상태 변경, override 저장을 할 수 없다.
@@ -256,7 +249,6 @@ Codex 기준:
 - 작업 규모에 따라 판단하되, 실제 Streamlit 구현처럼 변경 파일이 많은 작업은 worktree 사용을 권장한다.
 - 큰 작업 또는 사용자 명시 지시가 있으면 채팅 시작 전 `Start in → New worktree`를 선택한다.
 - 작업 중간 `Handoff to worktree`는 사용하지 않는다.
-- 중간 전환이 필요하면 먼저 `git commit` 또는 `git stash -u`로 보호한다.
 - 산출물 작업은 Work Board에 락을 먼저 visible하게 만든 뒤 시작한다.
 
 원본 영역:
@@ -277,14 +269,15 @@ Codex는 다음을 하지 않는다.
 
 - Claude Code가 작성 중인 `final_report_<slug>.md`, `risk_notes_<slug>.md`, `questions_<slug>.md` 임의 덮어쓰기
 - `raw/`, `wiki/`, `export/` 원본 영역 임의 수정
-- 실제 고객 데이터, override CSV, 비밀번호/secrets를 Git에 커밋
+- 실제 고객 데이터, override CSV, 인증 정보를 Git에 커밋
 - 방문보고서나 wiki에 없는 고객 의도, 예산, 구매 가능성 추정
 - 고객사의 미공개 전략, 예산, 조직 상황 단정
-- 검토 필요 또는 confidence 낮은 매칭을 확정 추천처럼 표시
+- confidence 낮은 매칭을 확정 추천처럼 표시
 - 마케팅 활용 후보를 확정 캠페인 또는 확정 고객 수요처럼 표현
 - 개인정보, 개인 연락처, 민감한 개인 정보 수집 또는 노출
 - 사용자가 제공하지 않은 CSV 스키마를 확정된 것처럼 단정
-- 외부 고객사/소프트웨어 로고 또는 시각 정체성 무단 복제
+- 현재 CSV에 없는 `customer_id`, `review_status`를 있다고 가정
+- `sensitivity_level`을 화면 필터/배지 기준으로 사용
 - 사용자 수정 중이거나 Work Board에서 locked 된 파일 덮어쓰기
 - 서버 운영 파일을 사용자 승인 없이 변경
 - Work Board 락 등록 생략 후 산출물 작성
@@ -295,16 +288,15 @@ Codex는 다음을 하지 않는다.
 
 ## 12. 작업 종료 체크리스트
 
-작업 종료 전 반드시 확인한다.
-
 ```text
 [ ] 수정 파일 목록 확인
 [ ] raw/, wiki/, export/ 원본 영역을 수정하지 않았는가
-[ ] 실제 고객 데이터, override CSV, secrets가 Git에 포함되지 않았는가
+[ ] 실제 고객 데이터, override CSV, 인증 정보가 Git에 포함되지 않았는가
 [ ] CSV 파일명·컬럼명을 임의 보정하지 않았는가
 [ ] 현재 CSV에 없는 customer_id/review_status를 있다고 가정하지 않았는가
+[ ] sensitivity_level을 화면 필터/배지 기준으로 사용하지 않았는가
 [ ] 실행 또는 검증 결과를 남겼는가
-[ ] dashboard_visible/sensitivity_level/confidence 표시 기준을 지켰는가
+[ ] dashboard_visible/confidence 표시 기준을 지켰는가
 [ ] 마케팅 활용 후보를 확정 캠페인처럼 표현하지 않았는가
 [ ] Work Board 락을 해제했는가
 [ ] Handoff Log를 남겼는가
