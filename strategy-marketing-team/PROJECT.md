@@ -70,3 +70,4 @@ Project flow: `방문보고서·기능 업데이트 자료` → `Claude 분석·
 작업 종료 시 `[YYYY-MM-DD HH:mm] actor / changed: ... / verified: ... / next: ...` 형식으로 1줄 기록한다. 최근 10개를 유지하고 초과분은 `archive/`로 이동한다(상세 `docs/collab-protocol.md` §6).
 
 * [2026-06-06 00:00] ChatGPT / changed: 첨부된 `project-overview(1).md`의 목적·흐름·진행 상태·로컬/서버 폴더 구조를 반영해 PROJECT.md 업데이트 / verified: GitHub의 기존 PROJECT.md 구조와 사용자 제공 프로젝트 개요를 대조 / next: Claude Code 또는 Codex가 WB-001부터 순차 진행
+* [2026-06-06 00:00] ChatGPT / changed: `docs/collab-protocol.md`를 PROJECT.md와 사용자 목적에 맞게 전면 정리 / verified: 수정본에서 역할 분리, 데이터 경계, dashboard/ 기준, 서버 반영 흐름, 권한 기준, Git 커밋 금지 기준 확인 / next: AGENTS.md와 CLAUDE.md의 `app/` 표현 정합성 점검 필요
